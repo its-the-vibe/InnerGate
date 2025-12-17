@@ -50,13 +50,25 @@ func (ps *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Remove leading slash for comparison
 	requestPath := strings.TrimPrefix(r.URL.Path, "/")
 	
-	// Find matching route
-	for _, route := range ps.routes {
-		// Match exact path or path followed by slash or end of string
-		if requestPath == route.Path || strings.HasPrefix(requestPath, route.Path+"/") {
-			ps.proxyRequest(w, r, route)
-			return
+	// Find matching route - prioritize exact matches, then prefix matches
+	var matchedRoute *Route
+	for i := range ps.routes {
+		route := &ps.routes[i]
+		// Exact match - highest priority
+		if requestPath == route.Path {
+			matchedRoute = route
+			break
 		}
+		// Prefix match with slash boundary (e.g., 'api' matches 'api/v1' but not 'apikey')
+		if strings.HasPrefix(requestPath, route.Path+"/") {
+			matchedRoute = route
+			break
+		}
+	}
+	
+	if matchedRoute != nil {
+		ps.proxyRequest(w, r, *matchedRoute)
+		return
 	}
 
 	// No route found
