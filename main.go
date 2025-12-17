@@ -52,7 +52,8 @@ func (ps *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	
 	// Find matching route
 	for _, route := range ps.routes {
-		if strings.HasPrefix(requestPath, route.Path) {
+		// Match exact path or path followed by slash or end of string
+		if requestPath == route.Path || strings.HasPrefix(requestPath, route.Path+"/") {
 			ps.proxyRequest(w, r, route)
 			return
 		}
