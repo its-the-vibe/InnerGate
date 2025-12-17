@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  innergate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config.json:/config.json:ro
+    environment:
+      - CONFIG_PATH=/config.json
+      - PORT=8080
+    restart: unless-stopped
+    networks:
+      - innergate-network
+
+networks:
+  innergate-network:
+    driver: bridge

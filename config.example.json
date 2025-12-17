@@ -1,0 +1,12 @@
+[
+  {
+    "name": "github-webhook",
+    "path": "github-webhook",
+    "target": "http://localhost:8000/webhook"
+  },
+  {
+    "name": "slack-webhook",
+    "path": "slack-webhook",
+    "target": "http://localhost:8001/webhook"
+  }
+]
