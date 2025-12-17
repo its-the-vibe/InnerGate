@@ -88,7 +88,9 @@ func (ps *ProxyServer) proxyRequest(w http.ResponseWriter, r *http.Request, rout
 	// Create a reverse proxy
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 	
-	// Customize the director to preserve the original request path structure
+	// Customize the director to forward to the exact target URL
+	// Note: This replaces the request path with the target path (not appending subpaths)
+	// Example: /github-webhook -> http://localhost:8000/webhook (not /webhook/github-webhook)
 	originalDirector := proxy.Director
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
