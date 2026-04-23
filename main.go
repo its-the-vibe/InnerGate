@@ -30,7 +30,11 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open config file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("failed to close config file: %v", closeErr)
+		}
+	}()
 
 	data, err := io.ReadAll(file)
 	if err != nil {
@@ -85,20 +89,17 @@ func (ps *ProxyServer) proxyRequest(w http.ResponseWriter, r *http.Request, rout
 		return
 	}
 
-	// Create a reverse proxy
-	proxy := httputil.NewSingleHostReverseProxy(targetURL)
-	
-	// Customize the director to forward to the exact target URL
-	// Note: This replaces the request path with the target path (not appending subpaths)
+	// Create a reverse proxy that forwards to the exact target URL.
+	// Note: This sets the request path to the target path (not appending subpaths)
 	// Example: /github-webhook -> http://localhost:8000/webhook (not /webhook/github-webhook)
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-		req.Host = targetURL.Host
-		req.URL.Scheme = targetURL.Scheme
-		req.URL.Host = targetURL.Host
-		req.URL.Path = targetURL.Path
-		req.URL.RawQuery = r.URL.RawQuery
+	proxy := &httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.Out.URL.Scheme = targetURL.Scheme
+			pr.Out.URL.Host = targetURL.Host
+			pr.Out.URL.Path = targetURL.Path
+			pr.Out.URL.RawQuery = pr.In.URL.RawQuery
+			pr.Out.Host = targetURL.Host
+		},
 	}
 
 	// Log the request
