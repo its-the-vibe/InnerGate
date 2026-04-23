@@ -23,7 +23,9 @@ func writeConfigFile(t *testing.T, routes []Route) string {
 	if _, err := f.Write(data); err != nil {
 		t.Fatalf("failed to write config: %v", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
 	return f.Name()
 }
 
@@ -64,7 +66,9 @@ func TestNewProxyServer_InvalidJSON(t *testing.T) {
 	if _, err := f.WriteString("not-valid-json"); err != nil {
 		t.Fatalf("failed to write invalid JSON: %v", err)
 	}
-	f.Close()
+	if err := f.Close(); err != nil {
+		t.Fatalf("failed to close temp file: %v", err)
+	}
 
 	_, err = NewProxyServer(f.Name())
 	if err == nil {
