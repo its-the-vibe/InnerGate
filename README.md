@@ -1,5 +1,7 @@
 # InnerGate
 
+[![CI](https://github.com/its-the-vibe/InnerGate/actions/workflows/ci.yaml/badge.svg)](https://github.com/its-the-vibe/InnerGate/actions/workflows/ci.yaml)
+
 A simple service written in Go that acts as a reverse HTTP proxy for internally hosted services. This is useful for multiplexing multiple incoming webhooks using a single externally exposed endpoint (e.g., via ngrok).
 
 ## Features
