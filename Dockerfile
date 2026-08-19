@@ -1,5 +1,8 @@
 # Build stage
-FROM golang:1.26.6-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.6-alpine AS builder
+
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /build
 
@@ -13,22 +16,20 @@ RUN go mod download
 COPY *.go ./
 
 # Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags="-w -s" -o innergate .
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o innergate .
 
-# Final stage - using scratch for minimal image
-FROM scratch
+# Final stage (distroless)
+FROM gcr.io/distroless/static-debian13:nonroot
 
-# Copy the binary from builder
 COPY --from=builder /build/innergate /innergate
-
-# Copy SSL certificates for HTTPS requests (if needed)
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Expose default port
 EXPOSE 8080
 
 # Set default config path
 ENV CONFIG_PATH=/config.json
+
+USER nonroot:nonroot
 
 # Run the binary
 ENTRYPOINT ["/innergate"]
