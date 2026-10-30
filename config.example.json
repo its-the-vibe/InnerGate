@@ -2,7 +2,8 @@
   {
     "name": "github-webhook",
     "path": "github-webhook",
-    "target": "http://localhost:8000/webhook"
+    "target": "http://localhost:8000/webhook",
+    "bearerToken": "replace-with-a-secret-token"
   },
   {
     "name": "slack-webhook",

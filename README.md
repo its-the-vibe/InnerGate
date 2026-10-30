@@ -7,6 +7,7 @@ A simple service written in Go that acts as a reverse HTTP proxy for internally 
 ## Features
 
 - **Route-based proxying**: Forward requests to different backend services based on URL paths
+- **Optional bearer authentication**: Require a bearer token on selected routes
 - **Header preservation**: All headers (including authentication headers) are forwarded to backend services
 - **Lightweight**: Built with Go and runs in a minimal Docker container (using scratch base image)
 - **Easy configuration**: Simple JSON-based configuration file
@@ -20,7 +21,8 @@ Create a `config.json` file with your routes:
   {
     "name": "github-webhook",
     "path": "github-webhook",
-    "target": "http://localhost:8000/webhook"
+    "target": "http://localhost:8000/webhook",
+    "bearerToken": "replace-with-a-secret-token"
   },
   {
     "name": "slack-webhook",
@@ -34,6 +36,7 @@ Each route has:
 - `name`: A descriptive name for the route
 - `path`: The URL path to match (without leading slash)
 - `target`: The backend service URL to forward requests to
+- `bearerToken` (optional): Require requests to include an `Authorization` header using the `Bearer` scheme and the configured token. Requests with a missing or invalid token receive `401 Unauthorized`. Routes without this field do not require authentication. Keep configured tokens secret.
 
 ## Usage
 

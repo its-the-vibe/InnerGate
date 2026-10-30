@@ -32,7 +32,7 @@ func writeConfigFile(t *testing.T, routes []Route) string {
 // TestNewProxyServer_ValidConfig verifies that a valid config file is loaded correctly.
 func TestNewProxyServer_ValidConfig(t *testing.T) {
 	routes := []Route{
-		{Name: "svc-a", Path: "a", Target: "http://localhost:9001/hook"},
+		{Name: "svc-a", Path: "a", Target: "http://localhost:9001/hook", BearerToken: "secret"},
 		{Name: "svc-b", Path: "b", Target: "http://localhost:9002/hook"},
 	}
 	path := writeConfigFile(t, routes)
@@ -46,6 +46,9 @@ func TestNewProxyServer_ValidConfig(t *testing.T) {
 	}
 	if ps.routes[0].Name != "svc-a" {
 		t.Errorf("expected first route name 'svc-a', got %q", ps.routes[0].Name)
+	}
+	if ps.routes[0].BearerToken != "secret" {
+		t.Errorf("expected first route bearer token 'secret', got %q", ps.routes[0].BearerToken)
 	}
 }
 
@@ -219,5 +222,68 @@ func TestProxyRequest_HeadersForwarded(t *testing.T) {
 	}
 	if receivedAuth != "Bearer test-token" {
 		t.Errorf("expected Authorization header forwarded, got %q", receivedAuth)
+	}
+}
+
+func TestProxyRequest_BearerTokenAuthentication(t *testing.T) {
+	tests := []struct {
+		name        string
+		bearerToken string
+		token       string
+		wantStatus  int
+	}{
+		{
+			name:        "valid token",
+			bearerToken: "secret",
+			token:       "secret",
+			wantStatus:  http.StatusOK,
+		},
+		{
+			name:        "invalid token",
+			bearerToken: "secret",
+			token:       "wrong",
+			wantStatus:  http.StatusUnauthorized,
+		},
+		{
+			name:        "missing token",
+			bearerToken: "secret",
+			wantStatus:  http.StatusUnauthorized,
+		},
+		{
+			name:       "no token configured",
+			wantStatus: http.StatusOK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backendCalled := false
+			backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				backendCalled = true
+				w.WriteHeader(http.StatusOK)
+			}))
+			defer backend.Close()
+
+			route := Route{
+				Name:        "svc",
+				Path:        "svc",
+				Target:      backend.URL + "/hook",
+				BearerToken: tt.bearerToken,
+			}
+			req := httptest.NewRequest(http.MethodGet, "/svc", nil)
+			if tt.token != "" {
+				req.Header.Set("Authorization", "Bearer "+tt.token)
+			}
+			rec := httptest.NewRecorder()
+
+			(&ProxyServer{}).proxyRequest(rec, req, route)
+
+			if rec.Code != tt.wantStatus {
+				t.Errorf("expected status %d, got %d", tt.wantStatus, rec.Code)
+			}
+			if backendCalled != (tt.wantStatus == http.StatusOK) {
+				t.Errorf("expected backend called=%t, got %t", tt.wantStatus == http.StatusOK, backendCalled)
+			}
+		})
 	}
 }
