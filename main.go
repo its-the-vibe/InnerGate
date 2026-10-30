@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,9 +15,10 @@ import (
 
 // Route represents a single proxy route configuration
 type Route struct {
-	Name   string `json:"name"`
-	Path   string `json:"path"`
-	Target string `json:"target"`
+	Name        string `json:"name"`
+	Path        string `json:"path"`
+	Target      string `json:"target"`
+	BearerToken string `json:"bearerToken,omitempty"`
 }
 
 // ProxyServer holds the configuration and routes
@@ -53,7 +55,7 @@ func NewProxyServer(configPath string) (*ProxyServer, error) {
 func (ps *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Remove leading slash for comparison
 	requestPath := strings.TrimPrefix(r.URL.Path, "/")
-	
+
 	// Find matching route - prioritize exact matches, then prefix matches
 	var matchedRoute *Route
 	for i := range ps.routes {
@@ -69,7 +71,7 @@ func (ps *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	
+
 	if matchedRoute != nil {
 		ps.proxyRequest(w, r, *matchedRoute)
 		return
@@ -82,6 +84,22 @@ func (ps *ProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // proxyRequest forwards the request to the target URL
 func (ps *ProxyServer) proxyRequest(w http.ResponseWriter, r *http.Request, route Route) {
+	if route.BearerToken != "" {
+		authorization := r.Header.Values("Authorization")
+		valid := false
+		if len(authorization) == 1 {
+			parts := strings.Fields(authorization[0])
+			valid = len(parts) == 2 &&
+				strings.EqualFold(parts[0], "Bearer") &&
+				subtle.ConstantTimeCompare([]byte(parts[1]), []byte(route.BearerToken)) == 1
+		}
+		if !valid {
+			w.Header().Set("WWW-Authenticate", "Bearer")
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+	}
+
 	targetURL, err := url.Parse(route.Target)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
